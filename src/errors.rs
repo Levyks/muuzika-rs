@@ -2,11 +2,11 @@ use std::sync::{MutexGuard, PoisonError};
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use thiserror::Error;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::dtos::responses::ErrorResponse;
 
-#[derive(Error, Debug, Serialize, Clone)]
+#[derive(Error, Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum MuuzikaError {
     #[error("Unknown error")]

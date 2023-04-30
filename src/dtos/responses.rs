@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::dtos::common::RoomDto;
 use crate::errors::MuuzikaError;
 use crate::models::{Room};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateOrJoinRoomResponse {
     pub token: String,
@@ -26,7 +26,7 @@ impl CreateOrJoinRoomResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error: MuuzikaError,

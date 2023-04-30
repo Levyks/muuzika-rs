@@ -2,4 +2,10 @@
 
 ## [WIP]
 
-Rewrite of [Levyks/SongQuiz](https://github.com/Levyks/SongQuiz) in rust, with hopefully better code quality and performance, and probably a few more features.
+Rewrite of [Levyks/SongQuiz](https://github.com/Levyks/SongQuiz) in rust.
+
+Hopefully with:
+- Better performance
+- Better quality code
+- More features
+- Tests
