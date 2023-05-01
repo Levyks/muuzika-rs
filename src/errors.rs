@@ -1,6 +1,8 @@
 use std::sync::{MutexGuard, PoisonError};
+use actix::MailboxError;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
+use futures::channel::oneshot::Canceled;
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
 
@@ -18,14 +20,24 @@ pub enum MuuzikaError {
     #[error("Invalid request body")]
     InvalidRequestBody { message: String },
 
-    #[error("Room with code {code} was not found")]
-    RoomNotFound { code: String },
+    // The compiler literally panics if I put `room_code` instead of `code` here, why???
+    #[error("Room with code \"{code}\" was not found")]
+    RoomNotFound {  code: String },
 
     #[error("Out of available codes")]
     OutOfAvailableCodes,
 
-    #[error("Username taken")]
-    UsernameTaken,
+    #[error("There is already a player with username \"{username}\" in room \"{room_code}\"")]
+    UsernameTaken { 
+        room_code: String,
+        username: String 
+    },
+
+    #[error("There is no player with username \"{username}\" in room \"{room_code}\"")]
+    PlayerNotFound { 
+        room_code: String, 
+        username: String 
+    },
 }
 
 impl ResponseError for MuuzikaError {
@@ -34,8 +46,9 @@ impl ResponseError for MuuzikaError {
             MuuzikaError::Unknown { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             MuuzikaError::InvalidRequestBody { .. } => StatusCode::BAD_REQUEST,
             MuuzikaError::RoomNotFound { .. } => StatusCode::NOT_FOUND,
+            MuuzikaError::UsernameTaken { .. } => StatusCode::CONFLICT,
             MuuzikaError::OutOfAvailableCodes => StatusCode::SERVICE_UNAVAILABLE,
-            MuuzikaError::UsernameTaken => StatusCode::BAD_REQUEST,
+            _ => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -50,6 +63,24 @@ impl<T> From<PoisonError<MutexGuard<'_, T>>> for MuuzikaError
     fn from(error: PoisonError<MutexGuard<'_, T>>) -> Self {
         MuuzikaError::Unknown {
             message: format!("PoisonError: {:?}", error)
+        }
+    }
+}
+
+impl From<MailboxError> for MuuzikaError
+{
+    fn from(error: MailboxError) -> Self {
+        MuuzikaError::Unknown {
+            message: format!("MailboxError: {:?}", error)
+        }
+    }
+}
+
+impl From<Canceled> for MuuzikaError
+{
+    fn from(error: Canceled) -> Self {
+        MuuzikaError::Unknown {
+            message: format!("Canceled: {:?}", error)
         }
     }
 }

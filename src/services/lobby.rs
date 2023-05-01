@@ -1,37 +1,66 @@
-use std::sync::{Arc, Mutex};
-use crate::models::{Room, Player};
+use std::sync::Arc;
+
+use crate::dtos::responses::CreateOrJoinRoomResponse;
+use crate::room::{
+    Room,
+    messages::{CreateToken, DestroyRoom, DumpRoom, JoinRoom}
+};
 use crate::errors::MuuzikaError;
+use crate::room::messages::PreConnect;
 use crate::state::AppState;
+use crate::websocket::MyWs;
 
-pub fn create_room(leader_username: String, state: &AppState) -> Result<Arc<Mutex<Room>>, MuuzikaError> {
-    let code = state.pop_available_code();
+async fn create_room(code: String, leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+    
+    let room_addr = Room::create_and_start(code.clone(), leader_username.clone(), state.clone());
+    state.put_room(code, room_addr.clone());
 
-    let code = match code {
-        Some(code) => code,
-        None => return Err(MuuzikaError::OutOfAvailableCodes)
-    };
+    let token = room_addr.send(CreateToken { username: leader_username }).await??;
+    let room = room_addr.send(DumpRoom).await??;
 
-    let room = Room::new(code.clone(), leader_username.clone());
-    let room_mutex = Arc::new(Mutex::new(room));
-    state.put_room(code.clone(), room_mutex.clone());
-
-    Ok(room_mutex)
+    Ok(CreateOrJoinRoomResponse { token, room })
 }
 
-pub fn join_room(code: String, username: String, state: &AppState) -> Result<Arc<Mutex<Room>>, MuuzikaError> {
-    let room_mutex = state.get_room(&code)?;
-    let cloned_room_mutex = room_mutex.clone();
-    let mut room = room_mutex.lock()?;
+pub async fn create_room_with_random_code(leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+    let code = state.pop_available_code()?;
 
-    if room.players.contains_key(&username) {
-        return Err(MuuzikaError::UsernameTaken);
-    }
+    let cloned_state = state.clone();
 
-    let player = Player::new(username.clone());
-    room.players.insert(username, player);
-
-    Ok(cloned_room_mutex)
+    create_room(code.clone(), leader_username, state).await
+        .map_err(|err| {
+            match cloned_state.push_available_code(code) {
+                _ => err
+            }
+        })
 }
 
+pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+    let room_addr = state.get_room_addr(&code)?;
 
+    let token = room_addr.send(JoinRoom { username: username.clone() }).await??;
+    let room = room_addr.send(DumpRoom).await??;
 
+    Ok(CreateOrJoinRoomResponse { token, room })
+}
+
+pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), MuuzikaError> {
+    let room_addr = state.get_room_addr(&code)?;
+
+    room_addr.send(DestroyRoom).await??;
+
+    Ok(())
+}
+
+pub async fn connect(code: String, username: String, state: Arc<AppState>) -> Result<MyWs, MuuzikaError> {
+    let room_addr = state.get_room_addr(&code)?;
+
+    room_addr.send(PreConnect {
+        username: username.clone()
+    }).await??;
+    
+    Ok(MyWs {
+        username,
+        room_code: code,
+        room_addr
+    })
+}

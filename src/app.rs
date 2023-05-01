@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse};
 
 use crate::dtos::responses::ErrorResponse;
-use crate::endpoints::{create_room_endpoint, join_room_endpoint};
+use crate::endpoints::*;
 use crate::errors::MuuzikaError;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
@@ -15,5 +15,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
     cfg.app_data(json_config)
         .service(create_room_endpoint)
-        .service(join_room_endpoint);
+        .service(join_room_endpoint)
+        .service(destroy_room_endpoint)
+        .service(websocket_endpoint);
 }
