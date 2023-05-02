@@ -1,29 +1,29 @@
 use actix::prelude::*;
 use crate::dtos::common::RoomDto;
-use crate::errors::{MuuzikaError};
+use crate::errors::{UserFacingError};
 
 #[derive(Message)]
-#[rtype(result = "Result<RoomDto, MuuzikaError>")]
+#[rtype(result = "Result<RoomDto, UserFacingError>")]
 pub struct DumpRoom;
 
 #[derive(Message)]
-#[rtype(result = "Result<String, MuuzikaError>")]
+#[rtype(result = "Result<String, UserFacingError>")]
 pub struct CreateToken {
     pub username: String
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<String, MuuzikaError>")]
+#[rtype(result = "Result<String, UserFacingError>")]
 pub struct JoinRoom {
     pub username: String
 }
 
 #[derive(Message)]
-#[rtype(result = "Result<(), MuuzikaError>")]
+#[rtype(result = "Result<(), UserFacingError>")]
 pub struct DestroyRoom;
 
 #[derive(Message)]
-#[rtype(result = "Result<(), MuuzikaError>")]
+#[rtype(result = "Result<(), UserFacingError>")]
 pub struct PreConnect {
     pub username: String
 }
@@ -31,5 +31,5 @@ pub struct PreConnect {
 pub struct Delay(pub u64);
 
 impl Message for Delay {
-    type Result = Result<(), MuuzikaError>;
+    type Result = Result<(), UserFacingError>;
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use actix::{Actor, Addr, Arbiter, Context};
 use log::{error, info};
-use crate::errors::MuuzikaError;
+use crate::errors::UserFacingError;
 use crate::state::AppState;
 
 pub struct Room {
@@ -37,10 +37,10 @@ impl Room {
         Room::start_in_arbiter(&handle, move |_| room)
     }
     
-    pub fn get_player(&self, username: &str) -> Result<&PlayerEntry, MuuzikaError> {
+    pub fn get_player(&self, username: &str) -> Result<&PlayerEntry, UserFacingError> {
         match self.players.get(username) {
             Some(player) => Ok(player),
-            None => Err(MuuzikaError::PlayerNotFound { 
+            None => Err(UserFacingError::PlayerNotFound { 
                 username: username.to_string(),
                 room_code: self.code.clone()
             })

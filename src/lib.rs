@@ -6,3 +6,4 @@ pub mod services;
 pub mod errors;
 pub mod app;
 pub mod websocket;
+pub mod spotify;

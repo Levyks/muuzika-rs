@@ -3,10 +3,10 @@ use tokio::time;
 use crate::room::actor::{Room, PlayerEntry};
 use crate::room::messages::*;
 use crate::dtos::common::RoomDto;
-use crate::errors::MuuzikaError;
+use crate::errors::UserFacingError;
 
 impl Handler<DumpRoom> for Room {
-    type Result = Result<RoomDto, MuuzikaError>;
+    type Result = Result<RoomDto, UserFacingError>;
 
     fn handle(&mut self, _msg: DumpRoom, _ctx: &mut Context<Self>) -> Self::Result {
         Ok(RoomDto::from_room(self))
@@ -14,7 +14,7 @@ impl Handler<DumpRoom> for Room {
 }
 
 impl Handler<CreateToken> for Room {
-    type Result = Result<String, MuuzikaError>;
+    type Result = Result<String, UserFacingError>;
 
     fn handle(&mut self, msg: CreateToken, _ctx: &mut Context<Self>) -> Self::Result {
         self.get_player(&msg.username)?;
@@ -25,11 +25,11 @@ impl Handler<CreateToken> for Room {
 
 
 impl Handler<JoinRoom> for Room {
-    type Result = Result<String, MuuzikaError>;
+    type Result = Result<String, UserFacingError>;
 
     fn handle(&mut self, msg: JoinRoom, _ctx: &mut Context<Self>) -> Self::Result {
         if self.players.contains_key(&msg.username) {
-            return Err(MuuzikaError::UsernameTaken {
+            return Err(UserFacingError::UsernameTaken {
                 username: msg.username.clone(),
                 room_code: self.code.clone()
             });
@@ -45,7 +45,7 @@ impl Handler<JoinRoom> for Room {
 
 
 impl Handler<DestroyRoom> for Room {
-    type Result = Result<(), MuuzikaError>;
+    type Result = Result<(), UserFacingError>;
 
     fn handle(&mut self, _msg: DestroyRoom, ctx: &mut Context<Self>) -> Self::Result {
         ctx.stop();
@@ -54,7 +54,7 @@ impl Handler<DestroyRoom> for Room {
 }
 
 impl Handler<PreConnect> for Room {
-    type Result = Result<(), MuuzikaError>;
+    type Result = Result<(), UserFacingError>;
 
     fn handle(&mut self, msg: PreConnect, ctx: &mut Context<Self>) -> Self::Result {
         self.get_player(&msg.username)?;
@@ -63,7 +63,7 @@ impl Handler<PreConnect> for Room {
 }
 
 impl Handler<Delay> for Room {
-    type Result = ResponseFuture<Result<(), MuuzikaError>>;
+    type Result = ResponseFuture<Result<(), UserFacingError>>;
     
     fn handle(&mut self, msg: Delay, ctx: &mut Context<Self>) -> Self::Result {
         

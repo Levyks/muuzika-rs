@@ -10,12 +10,9 @@ use crate::dtos::responses::ErrorResponse;
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
-pub enum MuuzikaError {
+pub enum UserFacingError {
     #[error("Unknown error")]
-    Unknown {
-        #[serde(skip_serializing)]
-        message: String
-    },
+    InternalError(#[serde(skip_serializing)] InternalError),
 
     #[error("Invalid request body")]
     InvalidRequestBody { message: String },
@@ -40,14 +37,14 @@ pub enum MuuzikaError {
     },
 }
 
-impl ResponseError for MuuzikaError {
+impl ResponseError for UserFacingError {
     fn status_code(&self) -> StatusCode {
         match *self {
-            MuuzikaError::Unknown { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            MuuzikaError::InvalidRequestBody { .. } => StatusCode::BAD_REQUEST,
-            MuuzikaError::RoomNotFound { .. } => StatusCode::NOT_FOUND,
-            MuuzikaError::UsernameTaken { .. } => StatusCode::CONFLICT,
-            MuuzikaError::OutOfAvailableCodes => StatusCode::SERVICE_UNAVAILABLE,
+            UserFacingError::InternalError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            UserFacingError::InvalidRequestBody { .. } => StatusCode::BAD_REQUEST,
+            UserFacingError::RoomNotFound { .. } => StatusCode::NOT_FOUND,
+            UserFacingError::UsernameTaken { .. } => StatusCode::CONFLICT,
+            UserFacingError::OutOfAvailableCodes => StatusCode::SERVICE_UNAVAILABLE,
             _ => StatusCode::BAD_REQUEST,
         }
     }
@@ -58,29 +55,35 @@ impl ResponseError for MuuzikaError {
     }
 }
 
-impl<T> From<PoisonError<MutexGuard<'_, T>>> for MuuzikaError
+impl From<InternalError> for UserFacingError
+{
+    fn from(error: InternalError) -> Self {
+        UserFacingError::InternalError(error)
+    }
+}
+
+#[derive(Error, Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum InternalError {
+    
+    #[error("Token has expired")]
+    ExpiredToken,
+    
+    
+    // <Wrapped errors>
+    #[error("PoisonError: {0}")]
+    PoisonError(String),
+    
+    #[error("MailboxError: {source}")]
+    MailboxError { 
+        #[from] source: MailboxError 
+    }
+    // </Wrapped errors>
+}
+
+impl<T> From<PoisonError<MutexGuard<'_, T>>> for InternalError
 {
     fn from(error: PoisonError<MutexGuard<'_, T>>) -> Self {
-        MuuzikaError::Unknown {
-            message: format!("PoisonError: {:?}", error)
-        }
-    }
-}
-
-impl From<MailboxError> for MuuzikaError
-{
-    fn from(error: MailboxError) -> Self {
-        MuuzikaError::Unknown {
-            message: format!("MailboxError: {:?}", error)
-        }
-    }
-}
-
-impl From<Canceled> for MuuzikaError
-{
-    fn from(error: Canceled) -> Self {
-        MuuzikaError::Unknown {
-            message: format!("Canceled: {:?}", error)
-        }
+        InternalError::PoisonError(error.to_string())
     }
 }

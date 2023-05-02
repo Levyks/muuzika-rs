@@ -7,25 +7,28 @@ use rand::seq::SliceRandom;
 use std::sync::{Arc, Mutex};
 use actix::Addr;
 use dashmap::DashMap;
-use crate::errors::MuuzikaError;
+use crate::errors::UserFacingError;
+use crate::spotify::fetcher::SpotifyFetcher;
 
 pub struct AppState {
+    spotify_fetcher: Addr<SpotifyFetcher>,
     rooms: DashMap<String, Addr<Room>>,
     available_codes: Arc<Mutex<LinkedList<String>>>,
 }
 
 impl AppState {
-    pub fn new() -> AppState {
+    pub fn new(spotify_fetcher: Addr<SpotifyFetcher>) -> AppState {
         AppState {
+            spotify_fetcher,
             available_codes: Arc::new(Mutex::new(initialize_available_codes(4))),
             rooms: DashMap::new(),
         }
     }
 
-    pub fn get_room_addr(&self, code: &str) -> Result<Addr<Room>, MuuzikaError> {
+    pub fn get_room_addr(&self, code: &str) -> Result<Addr<Room>, UserFacingError> {
         match self.rooms.get(code) {
             Some(room) => Ok(room.value().clone()),
-            None => Err(MuuzikaError::RoomNotFound { code: code.to_string() })
+            None => Err(UserFacingError::RoomNotFound { code: code.to_string() })
         }
     }
 
@@ -38,22 +41,22 @@ impl AppState {
         self.rooms.shrink_to_fit();
     }
 
-    pub fn pop_available_code(&self) -> Result<String, MuuzikaError> {
+    pub fn pop_available_code(&self) -> Result<String, UserFacingError> {
         match self.available_codes.lock() {
             Ok(mut available_codes) => {
                 match available_codes.pop_front() {
                     Some(code) => Ok(code),
-                    None => Err(MuuzikaError::OutOfAvailableCodes)
+                    None => Err(UserFacingError::OutOfAvailableCodes)
                 }
             },
             Err(poison_error) => {
                 error!("Failed to lock available codes: {}", poison_error);
-                Err(MuuzikaError::Unknown { message: poison_error.to_string() })
+                Err(UserFacingError::Unknown { message: poison_error.to_string() })
             }
         }
     }
 
-    pub fn push_available_code(&self, code: String) -> Result<(), MuuzikaError> {
+    pub fn push_available_code(&self, code: String) -> Result<(), UserFacingError> {
         match self.available_codes.lock() {
             Ok(mut available_codes) => {
                 available_codes.push_front(code);
@@ -61,7 +64,7 @@ impl AppState {
             },
             Err(poison_error) => {
                 error!("Failed to lock available codes: {}", poison_error);
-                Err(MuuzikaError::Unknown { message: poison_error.to_string() })
+                Err(UserFacingError::Unknown { message: poison_error.to_string() })
             }
         }
     }

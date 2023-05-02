@@ -5,12 +5,12 @@ use crate::room::{
     Room,
     messages::{CreateToken, DestroyRoom, DumpRoom, JoinRoom}
 };
-use crate::errors::MuuzikaError;
+use crate::errors::UserFacingError;
 use crate::room::messages::PreConnect;
 use crate::state::AppState;
 use crate::websocket::MyWs;
 
-async fn create_room(code: String, leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+async fn create_room(code: String, leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
     
     let room_addr = Room::create_and_start(code.clone(), leader_username.clone(), state.clone());
     state.put_room(code, room_addr.clone());
@@ -21,7 +21,7 @@ async fn create_room(code: String, leader_username: String, state: Arc<AppState>
     Ok(CreateOrJoinRoomResponse { token, room })
 }
 
-pub async fn create_room_with_random_code(leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+pub async fn create_room_with_random_code(leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
     let code = state.pop_available_code()?;
 
     let cloned_state = state.clone();
@@ -34,7 +34,7 @@ pub async fn create_room_with_random_code(leader_username: String, state: Arc<Ap
         })
 }
 
-pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, MuuzikaError> {
+pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
     let room_addr = state.get_room_addr(&code)?;
 
     let token = room_addr.send(JoinRoom { username: username.clone() }).await??;
@@ -43,7 +43,7 @@ pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> 
     Ok(CreateOrJoinRoomResponse { token, room })
 }
 
-pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), MuuzikaError> {
+pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), UserFacingError> {
     let room_addr = state.get_room_addr(&code)?;
 
     room_addr.send(DestroyRoom).await??;
@@ -51,7 +51,7 @@ pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), Muuz
     Ok(())
 }
 
-pub async fn connect(code: String, username: String, state: Arc<AppState>) -> Result<MyWs, MuuzikaError> {
+pub async fn connect(code: String, username: String, state: Arc<AppState>) -> Result<MyWs, UserFacingError> {
     let room_addr = state.get_room_addr(&code)?;
 
     room_addr.send(PreConnect {
