@@ -2,7 +2,7 @@ use actix_web::{web, App, HttpServer};
 use actix_web::middleware::Logger;
 use env_logger::Env;
 use muuzika::app::config;
-use muuzika::spotify::actor::SpotifyFetcher;
+use muuzika::spotify::fetcher::SpotifyFetcher;
 
 use muuzika::state::AppState;
 

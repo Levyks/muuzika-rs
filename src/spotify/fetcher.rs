@@ -1,6 +1,6 @@
 use std::time::{SystemTime, SystemTimeError};
 use actix::prelude::*;
-use crate::errors::InternalError;
+use crate::errors::MuuzikaError;
 
 pub struct SpotifyFetcher {
     client_id: String,
@@ -29,7 +29,7 @@ impl SpotifyFetcher {
         SpotifyFetcher::start_in_arbiter(&arbiter.handle(), move |_| fetcher)
     }
     
-    pub fn get_valid_access_token(&self) -> Result<Option<String>, InternalError> {
+    pub fn get_valid_access_token(&self) -> Result<Option<String>, MuuzikaError> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();

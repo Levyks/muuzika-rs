@@ -1,8 +1,9 @@
+use std::backtrace::Backtrace;
 use std::sync::{MutexGuard, PoisonError};
-use actix::MailboxError;
+use actix::{MailboxError, ResponseFuture};
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
-use futures::channel::oneshot::Canceled;
+use log::error;
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
 
@@ -12,8 +13,8 @@ use crate::dtos::responses::ErrorResponse;
 #[serde(tag = "type")]
 pub enum UserFacingError {
     #[error("Unknown error")]
-    InternalError(#[serde(skip_serializing)] InternalError),
-
+    InternalError,
+    
     #[error("Invalid request body")]
     InvalidRequestBody { message: String },
 
@@ -29,12 +30,6 @@ pub enum UserFacingError {
         room_code: String,
         username: String 
     },
-
-    #[error("There is no player with username \"{username}\" in room \"{room_code}\"")]
-    PlayerNotFound { 
-        room_code: String, 
-        username: String 
-    },
 }
 
 impl ResponseError for UserFacingError {
@@ -45,7 +40,6 @@ impl ResponseError for UserFacingError {
             UserFacingError::RoomNotFound { .. } => StatusCode::NOT_FOUND,
             UserFacingError::UsernameTaken { .. } => StatusCode::CONFLICT,
             UserFacingError::OutOfAvailableCodes => StatusCode::SERVICE_UNAVAILABLE,
-            _ => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -55,35 +49,66 @@ impl ResponseError for UserFacingError {
     }
 }
 
-impl From<InternalError> for UserFacingError
+impl From<MuuzikaError> for UserFacingError
 {
-    fn from(error: InternalError) -> Self {
-        UserFacingError::InternalError(error)
+    fn from(error: MuuzikaError) -> Self {
+        match error {
+            MuuzikaError::RoomNotFound { code } => UserFacingError::RoomNotFound { code },
+            MuuzikaError::OutOfAvailableCodes => UserFacingError::OutOfAvailableCodes,
+            MuuzikaError::UsernameTaken { room_code, username } => UserFacingError::UsernameTaken { room_code, username },
+            _ => {
+                let backtrace = Backtrace::capture();
+                error!("Internal error: {}", error);
+                error!("{:?}", backtrace);
+                UserFacingError::InternalError
+            }
+        }
     }
 }
 
-#[derive(Error, Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-pub enum InternalError {
+#[derive(Error, Debug)]
+pub enum MuuzikaError {
     
     #[error("Token has expired")]
     ExpiredToken,
-    
+
+    // The compiler literally panics if I put `room_code` instead of `code` here, why???
+    #[error("Room with code \"{code}\" was not found")]
+    RoomNotFound {  code: String },
+
+    #[error("Out of available codes")]
+    OutOfAvailableCodes,
+
+    #[error("There is already a player with username \"{username}\" in room \"{room_code}\"")]
+    UsernameTaken {
+        room_code: String,
+        username: String
+    },
+
+    #[error("There is no player with username \"{username}\" in room \"{room_code}\"")]
+    PlayerNotFound {
+        room_code: String,
+        username: String
+    },
     
     // <Wrapped errors>
     #[error("PoisonError: {0}")]
     PoisonError(String),
     
-    #[error("MailboxError: {source}")]
-    MailboxError { 
-        #[from] source: MailboxError 
-    }
+    #[error("MailboxError: {0}")]
+    MailboxError(#[from] MailboxError),
+    
+    #[error("SystemTimeError: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
     // </Wrapped errors>
 }
 
-impl<T> From<PoisonError<MutexGuard<'_, T>>> for InternalError
+impl<T> From<PoisonError<MutexGuard<'_, T>>> for MuuzikaError
 {
     fn from(error: PoisonError<MutexGuard<'_, T>>) -> Self {
-        InternalError::PoisonError(error.to_string())
+        MuuzikaError::PoisonError(error.to_string())
     }
 }
+
+pub type MuuzikaResult<T> = Result<T, MuuzikaError>;
+pub type MuuzikaFutureResult<T> = ResponseFuture<MuuzikaResult<T>>;

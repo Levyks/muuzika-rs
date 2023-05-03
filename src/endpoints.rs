@@ -2,12 +2,10 @@ use actix_web::{get, post, delete, web, Result, HttpResponse, Responder, HttpReq
 use actix_web_actors::ws;
 use serde::Deserialize;
 
-use crate::state::{AppState};
+use crate::state::AppState;
 use crate::dtos::requests::CreateOrJoinRoomRequest;
 use crate::errors::UserFacingError;
-use crate::services::lobby::{create_room_with_random_code, join_room, destroy_room, connect};
-use crate::websocket::MyWs;
-
+use crate::lobby::{create_room_with_random_code, join_room, destroy_room, connect};
 
 #[post("/rooms")]
 pub async fn create_room_endpoint(body: web::Json<CreateOrJoinRoomRequest>, data: web::Data<AppState>) -> Result<impl Responder, UserFacingError> {
@@ -37,9 +35,6 @@ pub struct Info {
 
 #[get("/ws")]
 pub async fn websocket_endpoint(req: HttpRequest, stream: web::Payload, info: web::Query<Info>, data: web::Data<AppState>) -> Result<HttpResponse, UserFacingError> {
-    
     let ws = connect(info.room_code.clone(), info.username.clone(), data.into_inner()).await?;
-    
-    ws::start(ws, &req, stream)
-        .map_err(|e| UserFacingError::Unknown { message: e.to_string() })
+    ws::start(ws, &req, stream).map_err(|_| UserFacingError::InternalError)
 }

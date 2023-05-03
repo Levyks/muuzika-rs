@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::room::{Room, PlayerEntry};
+use crate::actors::room::{Room, PlayerRoomEntry};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -11,11 +11,11 @@ pub struct PlayerDto {
 }
 
 impl PlayerDto {
-    pub fn from_player(player: &PlayerEntry) -> PlayerDto {
+    pub fn from_player(player: &PlayerRoomEntry) -> PlayerDto {
         PlayerDto {
             username: player.username.clone(),
             score: player.score,
-            is_connected: false
+            is_connected: player.is_connected(),
         }
     }
 }

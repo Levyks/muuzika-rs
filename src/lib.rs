@@ -1,9 +1,8 @@
-pub mod room;
+pub mod actors;
 pub mod endpoints;
 pub mod state;
 pub mod dtos;
-pub mod services;
+pub mod lobby;
 pub mod errors;
 pub mod app;
-pub mod websocket;
 pub mod spotify;

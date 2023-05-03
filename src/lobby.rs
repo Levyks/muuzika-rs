@@ -1,16 +1,15 @@
 use std::sync::Arc;
+use crate::actors::player::Player;
 
 use crate::dtos::responses::CreateOrJoinRoomResponse;
-use crate::room::{
+use crate::actors::room::{
     Room,
-    messages::{CreateToken, DestroyRoom, DumpRoom, JoinRoom}
+    messages::{CreateToken, DestroyRoom, DumpRoom, JoinRoom, PlayerExists}
 };
-use crate::errors::UserFacingError;
-use crate::room::messages::PreConnect;
+use crate::errors::{MuuzikaError, MuuzikaResult};
 use crate::state::AppState;
-use crate::websocket::MyWs;
 
-async fn create_room(code: String, leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
+async fn create_room(code: String, leader_username: String, state: Arc<AppState>) -> MuuzikaResult<CreateOrJoinRoomResponse> {
     
     let room_addr = Room::create_and_start(code.clone(), leader_username.clone(), state.clone());
     state.put_room(code, room_addr.clone());
@@ -21,7 +20,7 @@ async fn create_room(code: String, leader_username: String, state: Arc<AppState>
     Ok(CreateOrJoinRoomResponse { token, room })
 }
 
-pub async fn create_room_with_random_code(leader_username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
+pub async fn create_room_with_random_code(leader_username: String, state: Arc<AppState>) -> MuuzikaResult<CreateOrJoinRoomResponse> {
     let code = state.pop_available_code()?;
 
     let cloned_state = state.clone();
@@ -34,7 +33,7 @@ pub async fn create_room_with_random_code(leader_username: String, state: Arc<Ap
         })
 }
 
-pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> Result<CreateOrJoinRoomResponse, UserFacingError> {
+pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> MuuzikaResult<CreateOrJoinRoomResponse> {
     let room_addr = state.get_room_addr(&code)?;
 
     let token = room_addr.send(JoinRoom { username: username.clone() }).await??;
@@ -43,7 +42,7 @@ pub async fn join_room(code: String, username: String, state: Arc<AppState>) -> 
     Ok(CreateOrJoinRoomResponse { token, room })
 }
 
-pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), UserFacingError> {
+pub async fn destroy_room(code: String, state: Arc<AppState>) -> MuuzikaResult<()> {
     let room_addr = state.get_room_addr(&code)?;
 
     room_addr.send(DestroyRoom).await??;
@@ -51,16 +50,17 @@ pub async fn destroy_room(code: String, state: Arc<AppState>) -> Result<(), User
     Ok(())
 }
 
-pub async fn connect(code: String, username: String, state: Arc<AppState>) -> Result<MyWs, UserFacingError> {
+pub async fn connect(code: String, username: String, state: Arc<AppState>) -> MuuzikaResult<Player> {
     let room_addr = state.get_room_addr(&code)?;
 
-    room_addr.send(PreConnect {
+    if !room_addr.send(PlayerExists {
         username: username.clone()
-    }).await??;
+    }).await?? {
+        return Err(MuuzikaError::PlayerNotFound {
+            username: username.clone(),
+            room_code: code.clone()
+        });
+    }
     
-    Ok(MyWs {
-        username,
-        room_code: code,
-        room_addr
-    })
+    Ok(Player::new(username, room_addr))
 }
