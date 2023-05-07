@@ -1,5 +1,7 @@
+use std::pin::Pin;
+use std::time::{Duration, SystemTime};
 use actix::prelude::*;
-use crate::errors::{MuuzikaFutureResult, UserFacingError};
+use crate::errors::{MuuzikaError, MuuzikaFutureResult, UserFacingError};
 use crate::spotify::{
     fetcher::SpotifyFetcher,
     messages::*,
@@ -9,18 +11,35 @@ use crate::spotify::{
 impl Handler<GetAccessToken> for SpotifyFetcher {
     type Result = MuuzikaFutureResult<String>;
 
-    fn handle(&mut self, _msg: GetAccessToken, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, _msg: GetAccessToken, ctx: &mut Context<Self>) -> Self::Result {
+        let addr = ctx.address();
+        let preexistent_token_result = self.get_access_token_if_not_expired();
+        
+        Box::pin(async move {
+            let token = match preexistent_token_result? {
+                Some(token) => token.clone(),
+                None => addr.send(GenerateAccessToken).await??,
+            };
+            Ok(token.clone())
+        })
+    }
+}
 
-        todo!("Get access token from Spotify")
-        /*
-        if let Some(access_token) = &self.get_valid_access_token() {
-            Box::pin(async move { Ok(access_token.clone()) })
-        } else {
-            Box::pin(async move { 
-                todo!("Get access token from Spotify")
-            })
-        }
-         */
+impl Handler<GenerateAccessToken> for SpotifyFetcher {
+    type Result = MuuzikaFutureResult<String>;
+
+    fn handle(&mut self, _msg: GenerateAccessToken, ctx: &mut Context<Self>) -> Self::Result {
+        Box::pin(async move {
+            let token = "TODO: generate access token";
+            let expires_on = Duration::from_secs(3600);
+            
+            self.access_token = Some(token.to_string());
+            self.access_token_expires_at = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs() + expires_on.as_secs();
+            
+           Ok("TODO: generate access token".to_string())
+        })
     }
 }
 

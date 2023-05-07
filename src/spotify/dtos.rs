@@ -93,6 +93,6 @@ pub enum TokenType {
 
 pub struct AccessToken {
     pub access_token: String,
-    pub token_type: String,
+    pub token_type: TokenType,
     pub expires_in: u32,
 }

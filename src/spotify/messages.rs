@@ -11,3 +11,9 @@ pub struct FetchPlaylist {
 #[derive(Message)]
 #[rtype(result = "MuuzikaResult<String>")]
 pub struct GetAccessToken;
+
+#[derive(Message)]
+#[rtype(result = "MuuzikaResult<String>")]
+pub struct GenerateAccessToken;
+
+

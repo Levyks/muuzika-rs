@@ -1,12 +1,12 @@
-use std::time::{SystemTime, SystemTimeError};
+use std::time::{SystemTime};
 use actix::prelude::*;
-use crate::errors::MuuzikaError;
+use crate::errors::{MuuzikaError};
 
 pub struct SpotifyFetcher {
     client_id: String,
     client_secret: String,
-    access_token: Option<String>,
-    access_token_expires_at: u64,
+    pub access_token: Option<String>,
+    pub access_token_expires_at: u64,
 }
 
 impl Actor for SpotifyFetcher {
@@ -29,15 +29,20 @@ impl SpotifyFetcher {
         SpotifyFetcher::start_in_arbiter(&arbiter.handle(), move |_| fetcher)
     }
     
-    pub fn get_valid_access_token(&self) -> Result<Option<String>, MuuzikaError> {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs();
-        
-        if now < self.access_token_expires_at {
-            return Ok(self.access_token.clone());
+    pub fn get_access_token_if_not_expired(&self) -> Result<Option<String>, MuuzikaError> {
+        match self.access_token {
+            Some(ref token) => {
+                let now = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs();
+                
+                if now < self.access_token_expires_at {
+                    return Ok(Some(token.clone()));
+                }
+                
+                Ok(None)
+            }
+            None => Ok(None),
         }
-
-        Ok(None)
     }
 }
